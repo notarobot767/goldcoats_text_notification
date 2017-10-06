@@ -20,10 +20,7 @@ class SheetReader:
     return phone_string.rstrip("\n")
 
   def _isPhoneEmpty(self, line):
-    if line["phone_number"] == "":
-      return True
-    else:
-      return False
+    return not line["phone_number"]
 
   def getCarrierDic(self):
     raw_data = self.getSheetByIndex(1) #data from symbol_map
