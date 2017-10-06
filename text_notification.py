@@ -15,8 +15,15 @@ class SheetReader:
     raw_data = self.getSheetByIndex(0) #data from google form (phone & carrier)
     phone_string = ""
     for line in raw_data:
-      phone_string += self.getFormattedPhone(line)
+      if not self._isPhoneEmpty(line):
+        phone_string += self.getFormattedPhone(line)
     return phone_string.rstrip("\n")
+
+  def _isPhoneEmpty(self, line):
+    if line["phone_number"] == "":
+      return True
+    else:
+      return False
 
   def getCarrierDic(self):
     raw_data = self.getSheetByIndex(1) #data from symbol_map
