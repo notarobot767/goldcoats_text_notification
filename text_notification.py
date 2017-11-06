@@ -1,11 +1,11 @@
-import gspread
+from gspread import authorize
 from oauth2client.service_account import ServiceAccountCredentials
-import datetime
+from datetime import datetime
 
 class SheetReader:
   def __init__(self, scope, client_secret, url):
     creds = ServiceAccountCredentials.from_json_keyfile_name(client_secret, scope)
-    self.client = gspread.authorize(creds)
+    self.client = authorize(creds)
     self.url = url
     self.row_timestamp = "Timestamp"
     self.row_phone_num = "Phone Number"
@@ -35,7 +35,7 @@ class SheetReader:
 
     ans_str = ""
     for line in raw_data:
-      if self._rowNonEmpty(line):
+      if self._rowNonEmpty(line) and self._isToday(line):
         ans_str += self._transformRawLine(line)
     return ans_str.rstrip()
 
@@ -50,6 +50,14 @@ class SheetReader:
       line[self.row_phone_num],
       self._getCarrierDomain(line)
       )
+
+  #check if timestamp in line is same as today
+  def _isToday(self, line):
+    line = datetime.strptime(line[self.row_timestamp].split()[0], '%m/%d/%Y').date()
+    today = datetime.today().date()
+    #take only date portion of timestamp
+
+    return line == today
 
   #attempts to map carrier to its domain
   def _getCarrierDomain(self, line):
