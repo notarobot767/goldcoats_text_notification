@@ -1,49 +1,63 @@
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+import datetime
 
 class SheetReader:
   def __init__(self, scope, client_secret, url):
     creds = ServiceAccountCredentials.from_json_keyfile_name(client_secret, scope)
     self.client = gspread.authorize(creds)
     self.url = url
-    self.carrier_dic = self.getCarrierDic()
+    self.row_timestamp = "Timestamp"
+    self.row_phone_num = "Phone Number"
+    self.row_carrier = "Carrier"
+    self.row_unlisted_carrier = "Unlisted Carrier"
+    self.row_domain = "Domain"
+    self.carrier_dic = self._getCarrierDic()
+
+  #pulls symbol map of carriers to their domain in gsheet
+  def _getCarrierDic(self):
+    index = 1
+    raw_data = self.getSheetByIndex(index)
+    #index for data from symbol_map
+
+    carrier_dic = dict()
+    for line in raw_data:
+      carrier_dic[line[self.row_carrier]] = line[self.row_domain]
+    return carrier_dic
 
   def getSheetByIndex(self, i):
     return self.client.open_by_url(self.url).get_worksheet(i).get_all_records()
 
-  def getPhoneEmailString(self):
-    raw_data = self.getSheetByIndex(0) #data from google form (phone & carrier)
-    phone_string = ""
+  def run(self):
+    index = 0
+    raw_data = self.getSheetByIndex(0)
+    #index for data from google form (phone & carrier)
+
+    ans_str = ""
     for line in raw_data:
-      if not self._isPhoneEmpty(line):
-        phone_string += self.getFormattedPhone(line)
-    return phone_string.rstrip("\n")
+      if self._rowNonEmpty(line):
+        ans_str += self._transformRawLine(line)
+    return ans_str.rstrip()
 
-  def _isPhoneEmpty(self, line):
-    return not line["phone_number"]
+  #check if row of data input is considered nonempty
+  def _rowNonEmpty(self, line):
+    return line[self.row_timestamp]
+    #checks to see if timestamp field exists
 
-  def getCarrierDic(self):
-    raw_data = self.getSheetByIndex(1) #data from symbol_map
-    carrier_dic = dict()
-    for line in raw_data:
-      carrier_dic[line["carrier"]] = line["domain"]
-    return carrier_dic
-
-  def getCarrierDomain(self, line_phone_data):
-    unlisted = line_phone_data["unlisted_carrier"]
-    if not unlisted: #if not empty
-      return self.carrier_dic[line_phone_data["carrier"]]
-    else:
-      return "@" + unlisted + "[unlisted domain]"
-
-  def getPhoneNumber(self, line_phone_data):
-    return line_phone_data["phone_number"]
-
-  def getFormattedPhone(self, line_phone_data):
+  #transfrom data input into number@carrierdomain;
+  def _transformRawLine(self, line):
     return "{0}{1};\n".format(
-      self.getPhoneNumber(line_phone_data),
-      self.getCarrierDomain(line_phone_data)
+      line[self.row_phone_num],
+      self._getCarrierDomain(line)
       )
+
+  #attempts to map carrier to its domain
+  def _getCarrierDomain(self, line):
+    unlisted = line[self.row_unlisted_carrier]
+    if not unlisted: #if not empty
+      return self.carrier_dic[line[self.row_carrier]]
+    else:
+      return "@{0}[unlisted domain]".format(unlisted)
 
 if __name__ == '__main__':
   scope = ["https://spreadsheets.google.com/feeds"]
@@ -51,4 +65,4 @@ if __name__ == '__main__':
   url = "https://docs.google.com/spreadsheets/d/1lbWSb7C84LwZIfGzS8GwJiJ6SBKBTaxHwjvFoQjOxvU"
 
   my_sheet = SheetReader(scope, client_secret, url)
-  print(my_sheet.getPhoneEmailString())
+  print(my_sheet.run())
